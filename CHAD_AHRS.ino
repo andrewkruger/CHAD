@@ -42,7 +42,9 @@ int16_t m_raw[3];     //To store magnetometer readings
 
 float m_proc[3],m_HIO[3],m_avg[3];
 float HardIronOffset[3] = {108.8207,-72.6777,83.3884};
-// Magnetometer hard and soft iron corrections
+
+// MAGNETOMETER HARD AND SOFT IRON CORRECTIONS <-------------------
+// Needs to be changed for each CHAD, see http://physi.cz/chad
 float ScaleMag[3] = {1.69383e-3,1.68302e-3,1.81764e-3};
 float SoftIronXY = 3.51392e-5;
 float SoftIronXZ = 4.41685e-5;
@@ -291,16 +293,20 @@ void calcDirection() {
   mpu.dmpGetYawPitchRoll(ypr, &q, &gravity); 
   mpu.dmpGetGyro(gyro,fifoBuffer);      
   
+  // Gravity vectors gyroscope data and kalman filter to remove acceleration
+  // due to shaking and spinning, more accurate than using just accelerometer.
   float Gx = -gravity.y;
   float Gy = -gravity.z;
   float Gz = -gravity.x;
   float roll = atan2(Gy,Gz);
   float pitch = atan2(-Gx,Gy*sin(roll)+Gz*cos(roll));
   
+  // Axes depend on orientation of magnetometer, see http://physi.cz/chad 
   float Bx=-m_avg[1]/Ndata_int;
   float By=m_avg[2]/Ndata_int;
   float Bz=-m_avg[0]/Ndata_int;
   
+  // Calculate yaw with horizontal magnetic field vectors
   float XhScaled = Bx * cos(pitch) + By * sin(pitch) * sin(roll) + Bz * sin(pitch) * cos(roll);
   float YhScaled = By * cos(roll) - Bz * sin(roll);      
   float yaw = -atan2(YhScaled, XhScaled);
@@ -332,6 +338,9 @@ void readCompass() {
   m_HIO[0] = m_raw[0] - HardIronOffset[0];
   m_HIO[1] = m_raw[1] - HardIronOffset[1];
   m_HIO[2] = m_raw[2] - HardIronOffset[2];
+  
+  // Calibrate the raw magnetic field vectors, correcting for both
+  // hard and soft iron effects
   m_proc[0] = m_HIO[0]*ScaleMag[0] + m_HIO[1]*SoftIronXY + m_HIO[2]*SoftIronXZ;
   m_proc[1] = m_HIO[0]*SoftIronXY + m_HIO[1]*ScaleMag[1] + m_HIO[2]*SoftIronYZ;
   m_proc[2] = m_HIO[0]*SoftIronXZ + m_HIO[1]*SoftIronYZ + m_HIO[2]*ScaleMag[2];
