@@ -1,11 +1,11 @@
-// This code controls the motor Arduino in the Controlled
+// This code is for the Arduino motor-controller in the Controlled
 // Heading Automation Device (CHAD) built by Andrew Kruger and
 // students in the Physics 295 Independent Research course at
 // Wright College
 // Instructions and information found at http://physi.cz/chad
 
 
-// This tutorial is for Adafruit Motorshield v2 only!
+// Adafruit Motorshield v2
 #include <AccelStepper.h>
 #include <Wire.h>
 #include <Adafruit_MotorShield.h>
@@ -26,9 +26,9 @@ AccelStepper stepper(forwardstep, backwardstep);
 // Set up variables for rotational speed correction
 float rotSpeed;               //Input angular speed
 String rotSpeed_str;          //For converting incoming string
-float rotSpeedScale = .27;    //Scale rotational correction
-                              //Found experimentally,
-                              //this may need to change.
+float rotSpeedScale = .27;    //SCALE ROTATION CORRECTION <-------------------
+                              //Found experimentally, this may need to change.
+                              //See http://physi.cz/
 
 // Set up variables for heading
 float gammaPos;               //Input heading from gamma
@@ -61,25 +61,27 @@ void loop()
 {
   if (Serial.available() > 0)
     { 
+      // Read serial data from AHRS
       rotSpeed_str = Serial.readStringUntil(',');
       rotSpeed = rotSpeed_str.toInt();
-      gammaPos = -Serial.parseFloat();      //Read in AHRS heading in deg
-			gammaPosSteps = gammaPos * DegToSteps;  //Convert to steps
-			curPos = stepper.currentPosition() - startingPosition ;
-      amtMove = -gammaPosSteps - (curPos % 200) + rotSpeed*rotSpeedScale;
+      gammaPos = -Serial.parseFloat(); 
+      gammaPosSteps = gammaPos * DegToSteps;  //Convert to steps
+      curPos = stepper.currentPosition() - startingPosition ;  //Get current position
+      amtMove = -gammaPosSteps - (curPos % 200) + rotSpeed*rotSpeedScale; //Calculate ammount moved
                         
       //if the amount to move is less than -180deg, that is it will rotate more than half way
-			if (amtMove < -100) { amtMove+=200; }
-			//if the amount to move is greater than 180deg, that is it will rotate more than half way
-			if (amtMove >= 100) { amtMove-=200; }
-      amtMove = amtMove%200;
+      if (amtMove < -100) { amtMove+=200; }
+      //if the amount to move is greater than 180deg, that is it will rotate more than half way
+      if (amtMove >= 100) { amtMove-=200; }
+      amtMove = amtMove % 200;
 
       stepper.move(amtMove);  //Set amount to move	
-			stepper.run();          //Move
-			serialFlush();          //Clear serial memory
-
-      blinkState = !blinkState;
-      digitalWrite(13, blinkState);
+      stepper.run();          //Move
+      serialFlush();          //Clear serial memory
+	  
+      //Blink LED to show data is being received and processed
+      blinkState = !blinkState; 
+      digitalWrite(13, blinkState); 
       stepper.run();          //Move
     }
   stepper.run();  //Move
